@@ -4,10 +4,14 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Content } from 'mdast';
 
-export type TestTransformResult = null | {
-  content: Buffer | string;
-  lang: string;
-};
+export type TestTransformResult =
+  | null
+  | string
+  | Buffer
+  | {
+      content: Buffer | string;
+      lang: string;
+    };
 export type TransformFn = (
   content: string,
   opts: {
@@ -123,11 +127,19 @@ export async function createMarkdownToTestProcessor({
         if (!test) {
           continue;
         }
+        const lang =
+          typeof test === 'string' || test instanceof Buffer
+            ? content.lang || 'unknown'
+            : test.lang;
+        const testContent =
+          typeof test === 'string' || test instanceof Buffer
+            ? test
+            : test.content;
 
-        if (!tests[test.lang]) {
-          tests[test.lang] = [];
+        if (!tests[lang]) {
+          tests[lang] = [];
         }
-        tests[test.lang].push(test.content);
+        tests[lang].push(testContent);
       }
 
       return Promise.all(
