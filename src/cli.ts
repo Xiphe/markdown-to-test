@@ -4,7 +4,11 @@ import url from 'node:url';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import minimist from 'minimist';
-import markdownToTest, { Options, TransformFn } from './markdown-to-test.js';
+import markdownToTest, {
+  Options,
+  TransformFn,
+  Transformer,
+} from './markdown-to-test.js';
 
 run().catch((err) => {
   console.error(err);
@@ -34,7 +38,6 @@ async function run() {
   const entry = argv._.length === 0 ? process.cwd() : argv._[0];
   const ignoreFile = argv['ignore-file'] || '.gitignore';
   const outDir = argv['out-dir'] || 'markdown-tests';
-  const ext = argv.ext || '.test.js';
   const watch: boolean = argv.watch;
 
   const options: Options = {
@@ -42,7 +45,6 @@ async function run() {
     outDir,
     ignoreFile,
     transform: await getTransforms(argv),
-    rename: (original) => original.replace(/(\.md|\.markdown)$/i, ext),
   };
 
   if (watch === true) {
@@ -68,8 +70,6 @@ Options:
                                 (default: markdown-to-test.js)
   --transform-[lang] --t[lang]  path to transform file for given language
   --watch             -w        watch for changes
-  --ext               -e        target file extension
-                                (default: .test.js)
   --out-dir           -o        directory where test files should be placed
                                 (default: markdown-tests)
   --ignore-file       -i        gitignore style file containing paths to ignore
@@ -93,8 +93,8 @@ async function getVersion() {
 }
 
 async function getTransforms(argv: Record<string, string>) {
-  const multiTransforms: Record<string, TransformFn> = {};
-  const transforms: Promise<[lang: string, transform: TransformFn]>[] = [];
+  const multiTransforms: Record<string, Transformer> = {};
+  const transforms: Promise<[lang: string, transform: Transformer]>[] = [];
 
   const multiTransformFile = path.resolve(
     argv.transform || 'markdown-to-test.js',
@@ -108,9 +108,9 @@ async function getTransforms(argv: Record<string, string>) {
   ) {
     const maybeTransforms = await import(multiTransformFile);
     for (const t in maybeTransforms) {
-      if (typeof maybeTransforms[t] !== 'function') {
+      if (!seemsLikeTransformer(maybeTransforms[t])) {
         console.warn(
-          `export ${t} of ${argv.transform} is not a function, ignoring`,
+          `export ${t} of ${argv.transform} does not seem to be a transformer ignoring`,
         );
         continue;
       }
@@ -125,7 +125,7 @@ async function getTransforms(argv: Record<string, string>) {
     }
 
     transforms.push(
-      new Promise<[lang: string, transform: TransformFn]>(
+      new Promise<[lang: string, transform: Transformer]>(
         async (resolve, reject) => {
           try {
             const lang = m[2];
@@ -140,7 +140,7 @@ async function getTransforms(argv: Record<string, string>) {
               throw new Error(`${filename} has no ${deep} export`);
             }
 
-            if (typeof module[deep] !== 'function') {
+            if (!seemsLikeTransformer(module[deep])) {
               throw new Error(
                 `${deep} export of ${filename} is not a function`,
               );
@@ -159,4 +159,15 @@ async function getTransforms(argv: Record<string, string>) {
     ...multiTransforms,
     ...Object.fromEntries(await Promise.all(transforms)),
   };
+}
+
+function seemsLikeTransformer(input: unknown): input is Transformer {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    !Array.isArray(input) &&
+    ['function', 'undefined'].includes(typeof (input as any).transform) &&
+    ['function', 'undefined'].includes(typeof (input as any).wrap) &&
+    ['function', 'undefined'].includes(typeof (input as any).ext)
+  );
 }

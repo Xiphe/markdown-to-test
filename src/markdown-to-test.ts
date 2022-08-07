@@ -4,16 +4,26 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Content } from 'mdast';
 
+export type TestTransformResult = null | {
+  content: Buffer | string;
+  lang: string;
+};
 export type TransformFn = (
   content: string,
-  context: {
-    file: string;
-    wrap: boolean;
-    index: number | false;
+  opts: {
     context: any;
+    file: string;
+    index: number;
   },
-) => Buffer | string | null | Promise<Buffer | string | null>;
-
+) => TestTransformResult | Promise<TestTransformResult>;
+export interface Transformer {
+  transform?: TransformFn;
+  rename?: (file: string, content: Buffer) => string;
+  wrap?: (
+    content: string,
+    file: string,
+  ) => null | Buffer | string | Promise<null | Buffer | string>;
+}
 export interface Options
   extends Pick<WtchOpts, 'entry' | 'fs' | 'path'>,
     Omit<ProcessorOptions, 'fs'> {
@@ -55,18 +65,16 @@ export default function markdownToTest({
   return cmpl(options);
 }
 
-interface ProcessorOptions
-  extends Pick<Prcssr, 'recursive' | 'outDir' | 'rename'> {
+interface ProcessorOptions extends Pick<Prcssr, 'recursive' | 'outDir'> {
   ignoreUnknown?: boolean;
   ignoreFile?: string;
   fs: WatchFs | Promise<WatchFs>;
-  transform: Record<string, TransformFn>;
+  transform: Record<string, Transformer>;
 }
 export async function createMarkdownToTestProcessor({
   recursive,
   outDir,
   fs,
-  rename,
   transform,
   ignoreFile,
   ignoreUnknown = false,
@@ -75,7 +83,6 @@ export async function createMarkdownToTestProcessor({
 
   return {
     recursive,
-    rename,
     include: (name, isDir) => {
       if (ig && ig.ignores(name)) {
         return false;
@@ -85,7 +92,7 @@ export async function createMarkdownToTestProcessor({
     outDir,
     async transform(content, file) {
       const { children } = unified().use(remarkParse).parse(content);
-      const tests: (string | Buffer | null)[] = [];
+      const tests: Record<string, (string | Buffer | null)[]> = {};
       let i = 0;
       let previous: Content | null = null;
 
@@ -96,7 +103,7 @@ export async function createMarkdownToTestProcessor({
           continue;
         }
 
-        const transformer = transform[content.lang || 'unknown'];
+        const transformer = transform[content.lang || 'unknown']?.transform;
         if (!transformer) {
           if (!ignoreUnknown) {
             throw new Error(`No transformer for language ${content.lang}`);
@@ -106,31 +113,59 @@ export async function createMarkdownToTestProcessor({
 
         const context =
           prev?.type === 'html' ? parseContext(prev.value) : undefined;
-        tests.push(
-          await transformer(content.value, {
+
+        const test = await transformer(content.value, {
+          file,
+          index: i++,
+          context,
+        });
+
+        if (!test) {
+          continue;
+        }
+
+        if (!tests[test.lang]) {
+          tests[test.lang] = [];
+        }
+        tests[test.lang].push(test.content);
+      }
+
+      return Promise.all(
+        Object.entries(tests).map(async ([lang, tests]) => {
+          const {
+            wrap = (c: string) => c,
+            rename = (f: string) =>
+              f.replace(/(\.md|\.markdown)$/i, `.${lang}`),
+          } = transform[lang || 'unknown'] || {};
+
+          const resp = await wrap(
+            tests
+              .filter(
+                (t: string | Buffer | null): t is Buffer | string => t !== null,
+              )
+              .map((t) => t.toString())
+              .join('\n\n'),
             file,
-            wrap: false,
-            index: i++,
-            context,
-          }),
-        );
-      }
+          );
 
-      const wrapper = transform.wrap || ((c: string) => c);
-      const resp = await wrapper(
-        tests
-          .filter(
-            (t: string | Buffer | null): t is Buffer | string => t !== null,
-          )
-          .map((t) => t.toString())
-          .join('\n\n'),
-        { file, wrap: true, index: false, context: null },
+          if (!resp) {
+            return null;
+          }
+
+          const buf = typeof resp === 'string' ? Buffer.from(resp) : resp;
+
+          return { name: rename(file, buf), content: buf };
+        }),
+      ).then((r) =>
+        r.filter(
+          (
+            entry,
+          ): entry is {
+            content: Buffer;
+            name: string;
+          } => entry !== null,
+        ),
       );
-
-      if (typeof resp === 'string') {
-        return Buffer.from(resp);
-      }
-      return resp;
     },
   };
 }

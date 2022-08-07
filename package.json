@@ -42,11 +42,10 @@
   },
   "homepage": "https://github.com/Xiphe/markdown-to-test#readme",
   "dependencies": {
-    "cmpl": "0.4",
-    "ignore": "5.2.0",
-    "marked": "4.0.18",
-    "remark-parse": "10.0.1",
-    "unified": "10.1.2"
+    "cmpl": "~0.5.0",
+    "ignore": "^5.2.0",
+    "remark-parse": "^10.0.1",
+    "unified": "^10.1.2"
   },
   "devDependencies": {
     "@types/jest": "28.1.6",
