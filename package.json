@@ -1,10 +1,26 @@
 {
   "name": "markdown-to-test",
   "version": "0.0.0-development",
-  "description": "convert code examples from your markdown files to test files",
-  "main": "index.js",
+  "description": "extract code examples from your markdown files to test files",
+  "main": "markdown-to-test.cjs",
+  "module": "markdown-to-test.js",
+  "bin": "dist/cli.js",
+  "exports": {
+    ".": {
+      "import": "./dist/markdown-to-test.js",
+      "require": "./dist/markdown-to-test.cjs"
+    }
+  },
+  "type": "module",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "pretest": "npm run build && node dist/cli.js",
+    "build": "run-p build:**",
+    "prebuild": "rm -rf dist && tsc",
+    "dev": "run-p \"build:** -- --watch\"",
+    "build:esm": "esbuild src/markdown-to-test.ts --outfile=dist/markdown-to-test.js --format=esm --target=es2020",
+    "build:cjs": "esbuild src/markdown-to-test.ts --outfile=dist/markdown-to-test.cjs --format=cjs --target=es2016",
+    "build:cli": "esbuild src/cli.ts --outfile=dist/cli.js --format=esm --target=node18"
   },
   "repository": {
     "type": "git",
@@ -24,5 +40,24 @@
   "bugs": {
     "url": "https://github.com/Xiphe/markdown-to-test/issues"
   },
-  "homepage": "https://github.com/Xiphe/markdown-to-test#readme"
+  "homepage": "https://github.com/Xiphe/markdown-to-test#readme",
+  "dependencies": {
+    "cmpl": "0.4",
+    "ignore": "5.2.0",
+    "marked": "4.0.18",
+    "remark-parse": "10.0.1",
+    "unified": "10.1.2"
+  },
+  "devDependencies": {
+    "@types/jest": "28.1.6",
+    "@types/marked": "4.0.3",
+    "@types/minimist": "1.2.2",
+    "@types/node": "18.6.4",
+    "esbuild": "0.14.53",
+    "indent-string": "5.0.0",
+    "jest": "28.1.3",
+    "minimist": "1.2.6",
+    "npm-run-all": "4.1.5",
+    "typescript": "4.7.4"
+  }
 }
