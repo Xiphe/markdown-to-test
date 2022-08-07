@@ -1,0 +1,28 @@
+{
+  "name": "markdown-to-test",
+  "version": "0.0.0-development",
+  "description": "convert code examples from your markdown files to test files",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Xiphe/markdown-to-test.git"
+  },
+  "keywords": [
+    "test",
+    "markdown",
+    "doctest",
+    "documentation",
+    "jest",
+    "language",
+    "agnostic"
+  ],
+  "author": "Hannes Diercks <node@xiphe.net> (https://xiphe.net/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Xiphe/markdown-to-test/issues"
+  },
+  "homepage": "https://github.com/Xiphe/markdown-to-test#readme"
+}
