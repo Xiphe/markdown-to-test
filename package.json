@@ -1,6 +1,6 @@
 {
   "name": "markdown-to-test",
-  "version": "0.0.0-development",
+  "version": "0.1.0",
   "description": "extract code examples from markdown to test files",
   "main": "dist/markdown-to-test.cjs",
   "module": "dist/markdown-to-test.js",
