@@ -1,7 +1,7 @@
 # Test markdown document
 
 this is an example document containing code blocks that are tested
-by markdown-to-test. See source for context api.
+by markdown-to-test. See [source](https://github.com/Xiphe/markdown-to-test/blob/main/JestExample.md?plain=1) for context api.
 
 <!--
 title: logs to console

@@ -1,5 +1,7 @@
 # markdown-to-test
 
+[![Test](https://github.com/Xiphe/markdown-to-test/actions/workflows/test.yml/badge.svg)](https://github.com/Xiphe/markdown-to-test/actions/workflows/test.yml)
+
 extract code examples from markdown to test files
 
 ## Install
@@ -136,4 +138,4 @@ describe('Examples in Readme.md', () => {
 converts `js`, `cjs`, `mjs`, `jsx`, `ts`, `tsx` code blocks to jest tests.
 
 Supports custom test titles, ignoring blocks and prepending and appending
-custom code. See [Example.md](./Example.md) for usage details.
+custom code. See [JestExample.md](https://github.com/Xiphe/markdown-to-test/blob/main/JestExample.md?plain=1) for usage details.

@@ -41,7 +41,6 @@ export const unknown = {
  * @returns {Promise<import('./markdown-to-test').DetailedTestTransformResult | null>}
  */
 async function buildReadmeTest(opts) {
-  console.log(parts);
   const test = `
 import { fs, vol } from 'memfs';
 const fakeFS = fs.promises;
