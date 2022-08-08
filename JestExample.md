@@ -1,11 +1,13 @@
 # Test markdown document
 
-this is an example document containing code blocks that should be tested
-by markdown-to-test
+this is an example document containing code blocks that are tested
+by markdown-to-test. See source for context api.
 
 <!--
 title: logs to console
-before: jest.spyOn(console, 'log').mockImplementationOnce(() => {});
+before: |
+  import { jest } from '@jest/globals';
+  jest.spyOn(console, 'log').mockImplementationOnce(() => {});
 after: expect(console.log).toHaveBeenCalledTimes(1);
 -->
 
@@ -14,7 +16,7 @@ console.log('HI');
 ```
 
 <!--
-title: can be wrapped
+title: error example
 before: 'expect(() => {'
 after: '}).toThrowErrorMatchingInlineSnapshot(`"FAIL!"`);'
 -->
@@ -23,7 +25,7 @@ after: '}).toThrowErrorMatchingInlineSnapshot(`"FAIL!"`);'
 throw new Error('FAIL!');
 ```
 
-<!-- {"ignore": true} -->
+<!-- ignore: true -->
 
 ```cjs
 expect(true).toBe(false);

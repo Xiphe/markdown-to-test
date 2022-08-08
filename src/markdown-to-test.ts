@@ -5,15 +5,17 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Content } from 'mdast';
 
-export type TestTransformResult =
+export interface DetailedTestTransformResult<Context = any> {
+  context?: Context;
+  content: Buffer | string;
+  lang: string;
+}
+export type TestTransformResult<Context = any> =
   | null
   | string
   | Buffer
-  | {
-      content: Buffer | string;
-      lang: string;
-    };
-export type TransformFn = (
+  | DetailedTestTransformResult<Context>;
+export type TransformFn<Result = TestTransformResult> = (
   content: string,
   opts: {
     context: any;
@@ -21,13 +23,19 @@ export type TransformFn = (
     basePath: string;
     index: number;
   },
-) => TestTransformResult | Promise<TestTransformResult>;
-export interface Transformer {
-  transform?: TransformFn;
+) => Result | Promise<Result>;
+export interface Transformer<WrapContext = any, Result = TestTransformResult> {
+  transform?: TransformFn<Result>;
   rename?: (file: string, content: Buffer) => string;
   wrap?: (
-    content: string,
-    file: string,
+    content: {
+      context?: WrapContext;
+      content: string;
+    }[],
+    opts: {
+      file: string;
+      basePath: string;
+    },
   ) => null | Buffer | string | Promise<null | Buffer | string>;
 }
 export interface Options
@@ -106,7 +114,13 @@ export async function createMarkdownToTestProcessor({
     outDir,
     async transform(content, file) {
       const { children } = unified().use(remarkParse).parse(content);
-      const tests: Record<string, (string | Buffer | null)[]> = {};
+      const tests: Record<
+        string,
+        {
+          context?: any;
+          content: string;
+        }[]
+      > = {};
       let i = 0;
       let previous: Content | null = null;
 
@@ -120,7 +134,9 @@ export async function createMarkdownToTestProcessor({
         const transformer = transform[content.lang || 'unknown']?.transform;
         if (!transformer) {
           if (!ignoreUnknown) {
-            throw new Error(`No transformer for language ${content.lang}`);
+            throw new Error(
+              `No transformer for language ${content.lang || 'unknown'}`,
+            );
           }
           continue;
         }
@@ -142,10 +158,20 @@ export async function createMarkdownToTestProcessor({
           typeof test === 'string' || test instanceof Buffer
             ? content.lang || 'unknown'
             : test.lang;
-        const testContent =
-          typeof test === 'string' || test instanceof Buffer
-            ? test
-            : test.content;
+        const testContent = {
+          content:
+            typeof test === 'string'
+              ? test
+              : test instanceof Buffer
+              ? test.toString()
+              : typeof test.content === 'string'
+              ? test.content
+              : test.content.toString(),
+          context:
+            typeof test === 'string' || test instanceof Buffer
+              ? undefined
+              : test.context,
+        };
 
         if (!tests[lang]) {
           tests[lang] = [];
@@ -156,20 +182,12 @@ export async function createMarkdownToTestProcessor({
       return Promise.all(
         Object.entries(tests).map(async ([lang, tests]) => {
           const {
-            wrap = (c: string) => c,
+            wrap = (c: { content: string }[]) => c.join('\n'),
             rename = (f: string) =>
               f.replace(/(\.md|\.markdown)$/i, `.${lang}`),
           } = transform[lang || 'unknown'] || {};
 
-          const resp = await wrap(
-            tests
-              .filter(
-                (t: string | Buffer | null): t is Buffer | string => t !== null,
-              )
-              .map((t) => t.toString())
-              .join('\n\n'),
-            file,
-          );
+          const resp = await wrap(tests, { file, basePath: await basePath });
 
           if (!resp) {
             return null;

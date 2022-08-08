@@ -1,3 +1,4 @@
 node_modules
 dist
 Example.test.js
+README.test.js

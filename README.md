@@ -4,6 +4,8 @@ extract code examples from markdown to test files
 
 ## Install
 
+<!-- ignore: true -->
+
 ```bash
 npm install markdown-to-test
 # yarn add markdown-to-test
@@ -11,9 +13,13 @@ npm install markdown-to-test
 
 ## CLI
 
+<!-- ignore: true -->
+
 ```bash
 npx markdown-to-test -h
 ```
+
+<!-- ignore: true -->
 
 ```
 Usage:
@@ -41,6 +47,8 @@ Options:
 
 ## Lib
 
+<!-- id: exec -->
+
 ```ts
 import markdownToTest, { Options } from 'markdown-to-test';
 import transform from './myTransformers.ts';
@@ -50,7 +58,6 @@ const options: Options = {
   entry: process.cwd(),
   outDir: process.cwd(),
   watch: false,
-  // ignoreFile,
   // ignoreFile,
   // recursive,
   // ...
@@ -63,6 +70,8 @@ await markdownToTest(options);
 
 Given this markdown code-block in `Readme.md`:
 
+<!-- id: source -->
+
 ```
 <!--
 custom: add custom context here
@@ -74,8 +83,10 @@ const hello = 'Hello';
 
 And this transformer `myTransformers.ts`:
 
+<!-- id: transformer -->
+
 ```ts
-/** @type {import('./dist/markdown-to-test').Transformer} */
+/** @type {import('markdown-to-test').Transformer} */
 export const js = {
   transform(content, { index, context }) {
     return `
@@ -83,10 +94,12 @@ export const js = {
         ${content}
         console.log(${JSON.stringify(context)});
         expect(hello).toBe('Hello');
-      });`;
+      });
+    `.replace(/\n    /g, '\n');
   },
-  wrap(content, file) {
-    return `describe('Examples in ${file}', () => {\n${content}\n});`;
+  wrap(contents, { file }) {
+    const body = contents.map(({ content }) => content).join('\n');
+    return `describe('Examples in ${file}', () => {${body}});`;
   },
   rename(file) {
     return file.replace(/(\.md|\.markdown)$/i, '.js');
@@ -96,17 +109,21 @@ export const js = {
 
 Run with:
 
+<!-- ignore: true -->
+
 ```bash
 markdown-to-test --transform myTransformers.ts Readme.md
 ```
 
 Creates `Readme.js` file:
 
-```js
-describe('Examples in Test.md', () => {
+<!-- id: output -->
+
+```ts
+describe('Examples in Readme.md', () => {
   test('Example Nr 1 works', () => {
     const hello = 'Hello';
-    console.log({ custom: 'add custom context here' });
+    console.log({"custom":"add custom context here"});
     expect(hello).toBe('Hello');
   });
 });
