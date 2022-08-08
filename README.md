@@ -6,8 +6,6 @@ extract code examples from markdown to test files
 
 ## Install
 
-<!-- ignore: true -->
-
 ```bash
 npm install markdown-to-test
 # yarn add markdown-to-test
@@ -15,13 +13,9 @@ npm install markdown-to-test
 
 ## CLI
 
-<!-- ignore: true -->
-
 ```bash
 npx markdown-to-test -h
 ```
-
-<!-- ignore: true -->
 
 ```
 Usage:
@@ -32,19 +26,20 @@ Entry:
   (default: cwd)
 
 Options:
-  --transform         -t        comma separated list of transformers
-                                can be either name of build in, path or module name
-                                (default: jest)
-  --watch             -w        watch for changes
-                                (default: false)
-  --recursive         -r        look for markdown files in sub-directories
-                                (default: true)
-  --out-dir           -o        directory where test files should be placed
-                                (default: cwd)
-  --ignore-file       -i        gitignore style file containing paths to ignore
-                                (default: .gitignore)
-  --help              -h        display this message
-  --version           -v        display version
+  --transform         -t  comma separated list of transformers
+                          can be either name of build in, path or module name
+                          (default: jest)
+  --watch             -w  watch for changes
+                          (default: false)
+  --out-dir           -o  directory where test files should be placed
+                          (default: cwd)
+  --ignore-file       -i  gitignore style file containing paths to ignore
+                          (default: .gitignore)
+  --no-recursive          do not search sub-directories for markdown files
+  --no-ignore-unknown     throw on code blocks that do not have a
+                          transformer
+  --help              -h  display this message
+  --version           -v  display version
 ```
 
 ## Lib
@@ -83,11 +78,11 @@ const hello = 'Hello';
 \`\`\`
 ```
 
-And this transformer `myTransformers.ts`:
+And this transformer `myTransformers.js`:
 
 <!-- id: transformer -->
 
-```ts
+```js
 /** @type {import('markdown-to-test').Transformer} */
 export const js = {
   transform(content, { index, context }) {
@@ -111,10 +106,8 @@ export const js = {
 
 Run with:
 
-<!-- ignore: true -->
-
 ```bash
-markdown-to-test --transform myTransformers.ts Readme.md
+markdown-to-test --transform myTransformers.js Readme.md
 ```
 
 Creates `Readme.js` file:

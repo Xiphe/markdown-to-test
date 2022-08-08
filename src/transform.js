@@ -1,11 +1,12 @@
-import { js } from '../dist/preset-jest.js';
 export * from '../dist/preset-jest.js';
+import { js as defaultJs } from '../dist/preset-jest.js';
 
 /** @type {Record<string, string>} */
 const parts = {};
 
 /** @type {import('./markdown-to-test').Transformer} */
-export const ts = {
+export const js = {
+  ...defaultJs,
   transform(content, opts) {
     if (opts.context?.id) {
       parts[opts.context.id] = content;
@@ -15,15 +16,13 @@ export const ts = {
       return null;
     }
 
-    return js.transform(content, opts);
+    return defaultJs.transform(content, opts);
   },
 };
 
 /** @type {import('./markdown-to-test').Transformer} */
-export const bash = {
-  transform() {
-    return null;
-  },
+export const ts = {
+  transform: js.transform,
 };
 
 /** @type {import('./markdown-to-test').Transformer} */
@@ -32,6 +31,7 @@ export const unknown = {
     if (context?.id) {
       parts[context.id] = content;
     }
+
     return null;
   },
 };
@@ -64,7 +64,7 @@ expect((await fakeFS.readFile('/app/Readme.js')).toString()).toBe(\`${
   }\`);
   `;
 
-  return js.transform(test, {
+  return defaultJs.transform(test, {
     ...opts,
     context: { title: 'combined readme examples' },
   });

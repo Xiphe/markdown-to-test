@@ -23,8 +23,13 @@ async function run() {
       w: 'watch',
       v: 'version',
       i: 'ignore-file',
+      u: 'ignore-unknown',
     },
-    boolean: ['help', 'recursive', 'watch', 'version'],
+    boolean: ['help', 'recursive', 'watch', 'version', 'ignore-unknown'],
+    default: {
+      'ignore-unknown': true,
+      recursive: true,
+    },
   });
 
   if (argv.version) {
@@ -45,12 +50,14 @@ async function run() {
   const outDir = argv['out-dir'] || process.cwd();
   const watch: boolean = argv.watch;
   const recursive: boolean = argv.recursive;
+  const ignoreUnknown: boolean = argv['ignore-unknown'];
 
   const options: Options = {
     entry,
     outDir,
     ignoreFile,
     recursive,
+    ignoreUnknown,
     transform: await getTransforms(argv),
   };
 
@@ -76,19 +83,20 @@ Entry:
   (default: cwd)
 
 Options:
-  --transform         -t        comma separated list of transformers
-                                can be either name of build in, path or module name
-                                (default: jest)
-  --watch             -w        watch for changes
-                                (default: false)
-  --recursive         -r        look for markdown files in sub-directories
-                                (default: true)
-  --out-dir           -o        directory where test files should be placed
-                                (default: cwd)
-  --ignore-file       -i        gitignore style file containing paths to ignore
-                                (default: .gitignore)
-  --help              -h        display this message
-  --version           -v        display version
+  --transform         -t  comma separated list of transformers
+                          can be either name of build in, path or module name
+                          (default: jest)
+  --watch             -w  watch for changes
+                          (default: false)
+  --out-dir           -o  directory where test files should be placed
+                          (default: cwd)
+  --ignore-file       -i  gitignore style file containing paths to ignore
+                          (default: .gitignore)
+  --no-recursive          do not search sub-directories for markdown files
+  --no-ignore-unknown     throw on code blocks that do not have a
+                          transformer
+  --help              -h  display this message
+  --version           -v  display version
 `);
 }
 
