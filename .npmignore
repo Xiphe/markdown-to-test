@@ -1,5 +1,6 @@
 src
 .*
-Example.md
-Example.test.js
+JestExample.md
+JestExample.test.js
+README.test.js
 tsconfig.json
