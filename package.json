@@ -25,6 +25,7 @@
     "pretest": "npm run build && npm run generate",
     "build": "run-p build:**",
     "prebuild": "rm -rf dist && tsc",
+    "prepublish": "npm run test",
     "dev": "run-p \"build:** -- --watch\"",
     "build:esm": "esbuild src/markdown-to-test.ts --outfile=dist/markdown-to-test.js --format=esm --target=es2020",
     "build:cjs": "esbuild src/markdown-to-test.ts --outfile=dist/markdown-to-test.cjs --format=cjs --target=es2016",
