@@ -1,0 +1,5 @@
+src
+.*
+Example.md
+Example.test.js
+tsconfig.json

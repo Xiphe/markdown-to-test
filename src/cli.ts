@@ -4,11 +4,9 @@ import url from 'node:url';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import minimist from 'minimist';
-import markdownToTest, {
-  Options,
-  TransformFn,
-  Transformer,
-} from './markdown-to-test.js';
+import markdownToTest, { Options, Transformer } from './markdown-to-test.js';
+
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 run().catch((err) => {
   console.error(err);
@@ -18,14 +16,21 @@ run().catch((err) => {
 async function run() {
   const argv = minimist(process.argv.slice(2), {
     alias: {
-      e: 'ext',
       h: 'help',
       t: 'transform',
+      r: 'recursive',
       o: 'out-dir',
       w: 'watch',
+      v: 'version',
       i: 'ignore-file',
     },
+    boolean: ['help', 'recursive', 'watch', 'version'],
   });
+
+  if (argv.version) {
+    console.log(await getVersion());
+    return;
+  }
 
   if (argv.help) {
     return displayHelp();
@@ -37,13 +42,15 @@ async function run() {
 
   const entry = argv._.length === 0 ? process.cwd() : argv._[0];
   const ignoreFile = argv['ignore-file'] || '.gitignore';
-  const outDir = argv['out-dir'] || 'markdown-tests';
+  const outDir = argv['out-dir'] || process.cwd();
   const watch: boolean = argv.watch;
+  const recursive: boolean = argv.recursive;
 
   const options: Options = {
     entry,
     outDir,
     ignoreFile,
+    recursive,
     transform: await getTransforms(argv),
   };
 
@@ -59,33 +66,35 @@ async function run() {
 async function displayHelp() {
   console.log(`
 Usage:
-  markdown-to-test [options] [entry points]
+  markdown-to-test [options] [entry]
 
 Version:
   ${await getVersion()}
 
+Entry:
+  single markdown file or directory containing them
+  (default: cwd)
+
 Options:
-  --transform         -t        path to a transform file providing transformers
-                                for all languages used in code blocks
-                                (default: markdown-to-test.js)
-  --transform-[lang] --t[lang]  path to transform file for given language
+  --transform         -t        comma separated list of transformers
+                                can be either name of build in, path or module name
+                                (default: jest)
   --watch             -w        watch for changes
+                                (default: false)
+  --recursive         -r        look for markdown files in sub-directories
+                                (default: true)
   --out-dir           -o        directory where test files should be placed
-                                (default: markdown-tests)
+                                (default: cwd)
   --ignore-file       -i        gitignore style file containing paths to ignore
                                 (default: .gitignore)
   --help              -h        display this message
+  --version           -v        display version
 `);
 }
 
 async function getVersion() {
   try {
-    const pkg = await fs.readFile(
-      path.join(
-        path.dirname(url.fileURLToPath(import.meta.url)),
-        '../package.json',
-      ),
-    );
+    const pkg = await fs.readFile(path.join(__dirname, '../package.json'));
     return JSON.parse(pkg.toString()).version;
   } catch {
     return 'unknown';
@@ -93,72 +102,23 @@ async function getVersion() {
 }
 
 async function getTransforms(argv: Record<string, string>) {
-  const multiTransforms: Record<string, Transformer> = {};
-  const transforms: Promise<[lang: string, transform: Transformer]>[] = [];
+  const transformOpt = (argv.transform || 'jest')
+    .split(',')
+    .map((s) => s.trim())
+    .map((s) => (s === 'jest' ? path.resolve(__dirname, 'preset-jest.js') : s));
 
-  const multiTransformFile = path.resolve(
-    argv.transform || 'markdown-to-test.js',
-  );
+  const transforms: Record<string, Transformer> = {};
 
-  if (
-    await fs.access(multiTransformFile).then(
-      () => true,
-      () => false,
-    )
-  ) {
-    const maybeTransforms = await import(multiTransformFile);
-    for (const t in maybeTransforms) {
-      if (!seemsLikeTransformer(maybeTransforms[t])) {
-        console.warn(
-          `export ${t} of ${argv.transform} does not seem to be a transformer ignoring`,
-        );
-        continue;
+  for (const transformFile of transformOpt) {
+    const module = await import(path.resolve(transformFile));
+    for (const key in module) {
+      if (seemsLikeTransformer(module[key])) {
+        transforms[key] = Object.assign(transforms[key] || {}, module[key]);
       }
-      multiTransforms[t] = maybeTransforms[t];
     }
   }
 
-  for (const key in argv) {
-    const m = key.match(/^(t|transform-)([a-z0-9A-Z]+)/);
-    if (!m || key === 't' || key === 'transform') {
-      continue;
-    }
-
-    transforms.push(
-      new Promise<[lang: string, transform: Transformer]>(
-        async (resolve, reject) => {
-          try {
-            const lang = m[2];
-            let deep: string = 'default';
-            const filename = argv[key].replace(/:[^\.]+$/, (d) => {
-              deep = d.substring(1);
-              return '';
-            });
-
-            const module = await import(path.resolve(filename));
-            if (!module[deep]) {
-              throw new Error(`${filename} has no ${deep} export`);
-            }
-
-            if (!seemsLikeTransformer(module[deep])) {
-              throw new Error(
-                `${deep} export of ${filename} is not a function`,
-              );
-            }
-
-            resolve([lang, module[deep]]);
-          } catch (err) {
-            reject(err);
-          }
-        },
-      ),
-    );
-  }
-
-  return {
-    ...multiTransforms,
-    ...Object.fromEntries(await Promise.all(transforms)),
-  };
+  return transforms;
 }
 
 function seemsLikeTransformer(input: unknown): input is Transformer {

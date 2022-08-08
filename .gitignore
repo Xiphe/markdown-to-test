@@ -1,4 +1,3 @@
 node_modules
 dist
-markdown-tests/*
-!markdown-tests/__snapshots__/
+Example.test.js

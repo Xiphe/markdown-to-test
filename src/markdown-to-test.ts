@@ -1,5 +1,6 @@
 import { wtch, cmpl, WtchOpts, Prcssr, WatchFs } from 'cmpl';
-import ignore from 'ignore';
+import ignore, { Ignore } from 'ignore';
+import { parse as parseYaml } from 'yaml';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Content } from 'mdast';
@@ -17,6 +18,7 @@ export type TransformFn = (
   opts: {
     context: any;
     file: string;
+    basePath: string;
     index: number;
   },
 ) => TestTransformResult | Promise<TestTransformResult>;
@@ -30,7 +32,8 @@ export interface Transformer {
 }
 export interface Options
   extends Pick<WtchOpts, 'entry' | 'fs' | 'path'>,
-    Omit<ProcessorOptions, 'fs'> {
+    Omit<ProcessorOptions, 'ignore' | 'basePath'> {
+  ignoreFile?: string;
   watch?: boolean;
 }
 
@@ -46,17 +49,23 @@ export default function markdownToTest(
 export default function markdownToTest({
   entry,
   fs = import('node:fs/promises'),
-  path,
+  path = import('node:path'),
+  ignoreFile,
   watch,
   ...rest
 }: Options) {
+  const basePath = Promise.all([fs, path]).then(async ([fs, path]) =>
+    (await fs.stat(entry)).isDirectory() ? entry : path.dirname(entry),
+  );
+
   const options: WtchOpts = {
     entry,
     fs,
     path,
     processors: [
       createMarkdownToTestProcessor({
-        fs,
+        ignore: Promise.resolve(fs).then((fs) => getIgnores(fs, ignoreFile)),
+        basePath,
         ...rest,
       }),
     ],
@@ -70,20 +79,21 @@ export default function markdownToTest({
 }
 
 interface ProcessorOptions extends Pick<Prcssr, 'recursive' | 'outDir'> {
+  basePath: string | Promise<string>;
   ignoreUnknown?: boolean;
   ignoreFile?: string;
-  fs: WatchFs | Promise<WatchFs>;
+  ignore?: Ignore | Promise<Ignore | undefined>;
   transform: Record<string, Transformer>;
 }
 export async function createMarkdownToTestProcessor({
   recursive,
   outDir,
-  fs,
+  basePath,
   transform,
-  ignoreFile,
+  ignore,
   ignoreUnknown = false,
 }: ProcessorOptions): Promise<Prcssr> {
-  const ig = await getIgnores(await fs, ignoreFile);
+  const ig = await ignore;
 
   return {
     recursive,
@@ -120,6 +130,7 @@ export async function createMarkdownToTestProcessor({
 
         const test = await transformer(content.value, {
           file,
+          basePath: await basePath,
           index: i++,
           context,
         });
@@ -194,7 +205,7 @@ async function getIgnores(fs: WatchFs, ignoreFile?: string) {
 
 function parseContext(comment: string): any {
   try {
-    return JSON.parse(comment.replace(/^<!--|-->$/g, ''));
+    return parseYaml(comment.replace(/^<!--|-->$/g, ''));
   } catch {
     return undefined;
   }
