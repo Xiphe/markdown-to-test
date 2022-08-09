@@ -4,6 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Content } from 'mdast';
+import CodeFrameError from 'code-frame-error';
 
 export interface DetailedTestTransformResult<Context = any> {
   context?: Context;
@@ -121,6 +122,7 @@ export async function createMarkdownToTestProcessor({
           content: string;
         }[]
       > = {};
+      const rawLines = content.toString();
       let i = 0;
       let previous: Content | null = null;
 
@@ -134,8 +136,23 @@ export async function createMarkdownToTestProcessor({
         const transformer = transform[content.lang || 'unknown']?.transform;
         if (!transformer) {
           if (!ignoreUnknown) {
-            throw new Error(
+            throw new CodeFrameError(
               `No transformer for language ${content.lang || 'unknown'}`,
+              {
+                rawLines,
+                name: file,
+                location: {
+                  start: {
+                    line: content.position!.start.line,
+                    column: content.position!.start.column + 3,
+                  },
+                  end: {
+                    line: content.position!.start.line,
+                    column:
+                      content.position!.start.column + 3 + content.lang!.length,
+                  },
+                },
+              },
             );
           }
           continue;

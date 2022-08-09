@@ -4,12 +4,15 @@ import url from 'node:url';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import minimist from 'minimist';
+import CodeFrameError from 'code-frame-error';
 import markdownToTest, { Options, Transformer } from './markdown-to-test.js';
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 run().catch((err) => {
-  console.error(err);
+  console.error(
+    err instanceof CodeFrameError ? err.toString({ highlightCode: true }) : err,
+  );
   process.exit(1);
 });
 
