@@ -21,9 +21,25 @@ function createTransformExample(
       return null;
     }
 
-    const testBody = `${context.before || ''}\n${content}\n${
-      context.after || ''
-    }`;
+    if (
+      context.replace &&
+      (typeof context.replace !== 'object' || Array.isArray(context.replace))
+    ) {
+      throw new Error(`Unexpected ${typeof context.replace} under replace`);
+    }
+
+    const replaces = !context.replace ? [] : Object.entries(context.replace);
+
+    const testBody = `${context.before || ''}\n${replaces.reduce(
+      (mem, [search, replace]) => {
+        if (typeof replace !== 'string') {
+          throw new Error(`Unexpected ${typeof replace} as replace value`);
+        }
+
+        return mem.replace(new RegExp(search), replace);
+      },
+      content,
+    )}\n${context.after || ''}`;
     const importStatements = testBody.match(/(^|\n)import.+/gm) || [];
     const contentWoImport = importStatements.reduce(
       (mem, statement) => mem.replace(statement, ''),
@@ -48,7 +64,7 @@ function createTransformExample(
       context: {
         imports: importStatements,
       },
-      lang,
+      lang: context.lang || lang,
     };
   };
 }
