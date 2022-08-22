@@ -34,6 +34,7 @@ expect(true).toBe(false);
 <!--
 title: renders react element
 before: import { create } from 'react-test-renderer';
+lang: js
 after: |
   const element = create(<App />);
 

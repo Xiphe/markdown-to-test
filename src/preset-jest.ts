@@ -70,7 +70,7 @@ function createTransformExample(
 }
 
 function createWrap(
-  transformOptions?: TransformOptions,
+  transformOptions?: TransformOptions | false,
 ): Required<Transformer<Context>>['wrap'] {
   return async (contents, { basePath, file }) => {
     const sourcefile = path.join(basePath, file);
@@ -82,30 +82,49 @@ function createWrap(
       ? JSON.parse((await fs.readFile(tsconfigPath)).toString())
       : {};
 
-    const imports: string[] = [];
+    const imports = new Set<string>();
     const body: string[] = [];
 
     for (const { content, context } of contents) {
       body.push(content);
-      imports.push(...(context?.imports || []));
+      for (const imp of context?.imports || []) {
+        if (imp.trim().length) {
+          imports.add(imp.trim());
+        }
+      }
     }
 
-    const content = `${imports.join(
+    const content = `${Array.from(imports).join(
       '\n',
-    )}\ndescribe('Examples in ${file}', () => {\n${body.join('\n')}\n});`;
+    )}\n\ndescribe('Examples in ${file}', () => {\n${body.join('\n\n')}\n});`;
 
-    const result = await transform(content, {
-      tsconfigRaw,
-      sourcefile,
-      loader: 'tsx',
-      format: 'esm',
-      target: 'es2020',
-      platform: 'node',
-      ...transformOptions,
-    });
+    const result =
+      transformOptions !== false
+        ? await transform(content, {
+            tsconfigRaw,
+            sourcefile,
+            loader: 'tsx',
+            format: 'esm',
+            target: 'es2020',
+            platform: 'node',
+            ...transformOptions,
+          })
+        : { code: content };
 
-    return `// @ts-nocheck\n${result.code}`;
+    return `${
+      transformOptions === false ? '' : '// @ts-nocheck\n'
+    }${await prettify(result.code, sourcefile)}`;
   };
+}
+
+async function prettify(code: string, file: string) {
+  try {
+    const { default: prettier } = await import('prettier');
+    const config = await prettier.resolveConfig(file);
+    return prettier.format(code, { ...config, parser: 'typescript' });
+  } catch {
+    return code;
+  }
 }
 
 export const js: Required<
@@ -139,15 +158,15 @@ export const jsx: Transformer = {
   },
 };
 export const tsx: Transformer = {
-  transform: createTransformExample('ts'),
-  wrap: createWrap(),
+  transform: createTransformExample('tsx'),
+  wrap: createWrap(false),
   rename(file) {
     return file.replace(/(\.md|\.markdown)$/i, '.test.tsx');
   },
 };
 export const ts: Transformer = {
   transform: createTransformExample('ts'),
-  wrap: createWrap(),
+  wrap: createWrap(false),
   rename(file) {
     return file.replace(/(\.md|\.markdown)$/i, '.test.ts');
   },
