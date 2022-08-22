@@ -126,13 +126,29 @@ export const cjs: Transformer = {
 };
 export const mjs: Transformer = {
   transform: createTransformExample('js'),
+  wrap: createWrap(),
+  rename(file) {
+    return file.replace(/(\.md|\.markdown)$/i, '.test.mjs');
+  },
 };
 export const jsx: Transformer = {
   transform: createTransformExample('js'),
+  wrap: createWrap(),
+  rename(file) {
+    return file.replace(/(\.md|\.markdown)$/i, '.test.jsx');
+  },
 };
 export const tsx: Transformer = {
-  transform: createTransformExample('js'),
+  transform: createTransformExample('ts'),
+  wrap: createWrap(),
+  rename(file) {
+    return file.replace(/(\.md|\.markdown)$/i, '.test.tsx');
+  },
 };
 export const ts: Transformer = {
-  transform: createTransformExample('js'),
+  transform: createTransformExample('ts'),
+  wrap: createWrap(),
+  rename(file) {
+    return file.replace(/(\.md|\.markdown)$/i, '.test.ts');
+  },
 };
